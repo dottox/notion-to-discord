@@ -4,55 +4,61 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// The URL of your app (e.g., https://your-app-name.herokuapp.com)
-// You should set this in Heroku Config Vars
 const APP_URL = process.env.APP_URL;
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 
 app.use(express.json());
 
-// 1. Keep-alive endpoint
-app.get('/ping', (req, res) => {
-  res.send('pong');
-});
+app.get('/ping', (req, res) => res.send('pong'));
 
-// 2. Notion Webhook Catch
 app.post('/webhook', async (req, res) => {
-  const notionData = req.body;
+  const data = req.body.data || {};
+  const props = data.properties || {};
 
-  // Format your message for Discord here
+  // Helper to extract values based on Notion's data types
+  const getVal = (prop) => {
+    if (!prop) return "N/A";
+    if (prop.title) return prop.title[0]?.plain_text || "Untitled";
+    if (prop.rich_text) return prop.rich_text[0]?.plain_text || "None";
+    if (prop.select) return prop.select.name;
+    if (prop.status) return prop.status.name;
+    if (prop.date) return prop.date.start;
+    if (prop.created_time) return prop.created_time;
+    if (prop.people) return prop.people.map(p => p.name).join(', ') || "Unassigned";
+    return "N/A";
+  };
+
   const discordPayload = {
     embeds: [{
-      title: "Notion Update Detected",
-      description: `A change occurred in your Notion database.`,
-      color: 5814783, // Notion-ish Blue/Gray
+      title: "📌 Notion Kanban Update",
+      url: data.url || null, // Links directly to the Notion page
+      color: 3447003, // Nice blue color
       fields: [
-        { name: "Event Type", value: notionData.type || "Unknown", inline: true },
-        { name: "Source", value: "Notion Webhook", inline: true }
+        { name: "Name", value: getVal(props["Name"]), inline: false },
+        { name: "Assigned To", value: getVal(props["Assigned To"]), inline: true },
+        { name: "Prioridad", value: getVal(props["Prioridad"]), inline: true },
+        { name: "Status", value: getVal(props["Status"]), inline: true },
+        { name: "Fecha creación", value: getVal(props["Fecha creación"]), inline: false }
       ],
+      footer: { text: "Log Kanban" },
       timestamp: new Date()
     }]
   };
 
   try {
     await axios.post(DISCORD_WEBHOOK_URL, discordPayload);
-    console.log('Successfully forwarded to Discord');
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Error forwarding to Discord:', error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('Error:', error.response?.data || error.message);
+    res.status(500).send('Error');
   }
 });
 
 app.listen(PORT, () => {
   console.log(`Middleware listening on port ${PORT}`);
-
-  // 3. Keep-alive loop: Curl itself every 20 minutes
   if (APP_URL) {
     setInterval(() => {
-      axios.get(`${APP_URL}/ping`)
-        .then(() => console.log('Self-ping successful'))
-        .catch(err => console.error('Self-ping failed', err.message));
-    }, 20 * 60 * 1000); // 20 minutes
+      axios.get(`${APP_URL}/ping`).catch(() => {});
+    }, 20 * 60 * 1000);
   }
 });
