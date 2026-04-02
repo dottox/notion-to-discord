@@ -20,14 +20,24 @@ app.post('/webhook', async (req, res) => {
   // Helper to extract values based on Notion's data types
   const getVal = (prop) => {
     if (!prop) return "N/A";
-    if (prop.title) return prop.title[0]?.plain_text || "Untitled";
-    if (prop.rich_text) return prop.rich_text[0]?.plain_text || "None";
+    if (prop.title) return prop.title.map(part => part.plain_text).join('') || "Untitled";
+    if (prop.rich_text) return prop.rich_text.map(part => part.plain_text).join('') || "None";
     if (prop.select) return prop.select.name;
     if (prop.status) return prop.status.name;
     if (prop.date) return prop.date.start;
     if (prop.created_time) return prop.created_time;
     if (prop.people) return prop.people.map(p => p.name).join(', ') || "Unassigned";
     return "N/A";
+  };
+
+  const extractWebhookKey = (title) => {
+    const normalizedTitle = String(title || '')
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .toUpperCase();
+
+    const match = normalizedTitle.match(/\[(VJ|PHP|EE)\]/);
+    return match ? match[1] : null;
   };
 
   const discordPayload = {
@@ -48,14 +58,13 @@ app.post('/webhook', async (req, res) => {
   };
 
   const pageTitle = getVal(props["Name"]);
-  const normalizedTitle = typeof pageTitle === 'string' ? pageTitle.toUpperCase() : '';
-
+  const webhookKey = extractWebhookKey(pageTitle);
   let targetWebhookUrl;
-  if (normalizedTitle.includes('[VJ]')) {
+  if (webhookKey === 'VJ') {
     targetWebhookUrl = DISCORD_WEBHOOK_URL_VJ;
-  } else if (normalizedTitle.includes('[PHP]')) {
+  } else if (webhookKey === 'PHP') {
     targetWebhookUrl = DISCORD_WEBHOOK_URL_PHP;
-  } else if (normalizedTitle.includes('[EE]')) {
+  } else if (webhookKey === 'EE') {
     targetWebhookUrl = DISCORD_WEBHOOK_URL_EE;
   }
 
