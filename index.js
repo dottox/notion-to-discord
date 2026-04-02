@@ -5,7 +5,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const APP_URL = process.env.APP_URL;
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+const DISCORD_WEBHOOK_URL_VJ = process.env.DISCORD_WEBHOOK_VJ;
+const DISCORD_WEBHOOK_URL_EE = process.env.DISCORD_WEBHOOK_EE;
+const DISCORD_WEBHOOK_URL_PHP = process.env.DISCORD_WEBHOOK_PHP;
 
 app.use(express.json());
 
@@ -45,8 +47,24 @@ app.post('/webhook', async (req, res) => {
     }]
   };
 
+  const pageTitle = getVal(props["Name"]);
+  const normalizedTitle = typeof pageTitle === 'string' ? pageTitle.toUpperCase() : '';
+
+  let targetWebhookUrl;
+  if (normalizedTitle.includes('[VJ]')) {
+    targetWebhookUrl = DISCORD_WEBHOOK_URL_VJ;
+  } else if (normalizedTitle.includes('[PHP]')) {
+    targetWebhookUrl = DISCORD_WEBHOOK_URL_PHP;
+  } else if (normalizedTitle.includes('[EE]')) {
+    targetWebhookUrl = DISCORD_WEBHOOK_URL_EE;
+  }
+
+  if (!targetWebhookUrl) {
+    return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
+  }
+
   try {
-    await axios.post(DISCORD_WEBHOOK_URL, discordPayload);
+    await axios.post(targetWebhookUrl, discordPayload);
     res.status(200).send('OK');
   } catch (error) {
     console.error('Error:', error.response?.data || error.message);
