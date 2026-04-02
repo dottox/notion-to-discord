@@ -60,6 +60,7 @@ app.post('/webhook', async (req, res) => {
   }
 
   if (!targetWebhookUrl) {
+    console.log('No matching webhook tag found in title:', pageTitle);
     return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
   }
 
