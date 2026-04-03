@@ -40,6 +40,13 @@ app.post('/webhook', async (req, res) => {
     return match ? match[1] : null;
   };
 
+  const getWebhookUrl = (key) => {
+    if (key === 'VJ') return process.env.DISCORD_WEBHOOK_VJ || process.env.DISCORD_WEBHOOK_URL_VJ;
+    if (key === 'PHP') return process.env.DISCORD_WEBHOOK_PHP || process.env.DISCORD_WEBHOOK_URL_PHP;
+    if (key === 'EE') return process.env.DISCORD_WEBHOOK_EE || process.env.DISCORD_WEBHOOK_URL_EE;
+    return null;
+  };
+
   const discordPayload = {
     embeds: [{
       title: "📌 Notion Kanban Update",
@@ -59,18 +66,16 @@ app.post('/webhook', async (req, res) => {
 
   const pageTitle = getVal(props["Name"]);
   const webhookKey = extractWebhookKey(pageTitle);
-  let targetWebhookUrl;
-  if (webhookKey === 'VJ') {
-    targetWebhookUrl = DISCORD_WEBHOOK_URL_VJ;
-  } else if (webhookKey === 'PHP') {
-    targetWebhookUrl = DISCORD_WEBHOOK_URL_PHP;
-  } else if (webhookKey === 'EE') {
-    targetWebhookUrl = DISCORD_WEBHOOK_URL_EE;
+  const targetWebhookUrl = getWebhookUrl(webhookKey);
+
+  if (!webhookKey) {
+    console.log('No matching webhook tag found in title:', pageTitle);
+    return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
   }
 
   if (!targetWebhookUrl) {
-    console.log('No matching webhook tag found in title:', pageTitle);
-    return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
+    console.error(`Webhook tag [${webhookKey}] matched in title but no webhook URL is configured for it.`);
+    return res.status(500).send(`Webhook URL not configured for [${webhookKey}]`);
   }
 
   try {
