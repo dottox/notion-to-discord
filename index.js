@@ -26,18 +26,9 @@ app.post('/webhook', async (req, res) => {
     if (prop.status) return prop.status.name;
     if (prop.date) return prop.date.start;
     if (prop.created_time) return prop.created_time;
+    if (prop.materia) return prop.materia;
     if (prop.people) return prop.people.map(p => p.name).join(', ') || "Unassigned";
     return "N/A";
-  };
-
-  const extractWebhookKey = (title) => {
-    const normalizedTitle = String(title || '')
-      .normalize('NFKC')
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .toUpperCase();
-
-    const match = normalizedTitle.match(/\[(VJ|PHP|EE)\]/);
-    return match ? match[1] : null;
   };
 
   const getWebhookUrl = (key) => {
@@ -49,7 +40,7 @@ app.post('/webhook', async (req, res) => {
 
   const discordPayload = {
     embeds: [{
-      title: "📌 Notion Kanban Update",
+      title: "📌 Actualización Kanban de " + getVal(props["Materia"]),
       url: data.url || null, // Links directly to the Notion page
       color: 3447003, // Nice blue color
       fields: [
@@ -64,18 +55,12 @@ app.post('/webhook', async (req, res) => {
     }]
   };
 
-  const pageTitle = getVal(props["Name"]);
-  const webhookKey = extractWebhookKey(pageTitle);
-  const targetWebhookUrl = getWebhookUrl(webhookKey);
-
-  if (!webhookKey) {
-    console.log('No matching webhook tag found in title:', pageTitle);
-    return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
-  }
+  const materia = getVal(props["Materia"]);
+  const targetWebhookUrl = getWebhookUrl(materia);
 
   if (!targetWebhookUrl) {
-    console.error(`Webhook tag [${webhookKey}] matched in title but no webhook URL is configured for it.`);
-    return res.status(500).send(`Webhook URL not configured for [${webhookKey}]`);
+    console.log('No matching webhook found for materia:', materia);
+    return res.status(400).send('No matching webhook tag in title ([VJ], [PHP], [EE])');
   }
 
   try {
